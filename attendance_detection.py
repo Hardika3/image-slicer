@@ -9,8 +9,8 @@ MOVE_DOWN = 3
 image = cv2.imread(IMAGE)
 image = cv2.resize(image, (image.shape[1]//3, image.shape[0]//3))
 orig = image.copy()
-orig2 = image.copy()
 image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+orig2 = image.copy()
 def get_vert_line(img):
     shape = img.shape
     idxs = []
@@ -123,8 +123,10 @@ lines = get_horizontal_lines(image, idxa)
 lines = trim_lines(lines)
 new_lines = get_final_lines(lines)
 
+image = orig2
 first_line_idx = get_first_att_line(new_lines, image.shape, 60)
-attendance = []
+attendance_count = []
+attendance_avg = []
 for line_idx in range(first_line_idx, len(new_lines)-1):
     l1 = new_lines[line_idx]
     l2 = new_lines[line_idx+1]
@@ -145,9 +147,14 @@ for line_idx in range(first_line_idx, len(new_lines)-1):
         if x < thresh:
             count+=1
 
-    if count > 1000:
-        attendance.append(f"{line_idx-first_line_idx+1}, P")
+    if count > 500:
+        attendance_count.append(f"{line_idx-first_line_idx+1}, P, count {count}")
     else:
-        attendance.append(f"{line_idx-first_line_idx+1}, A")
+        attendance_count.append(f"{line_idx-first_line_idx+1}, A, count {count}")
 
-print(attendance)
+    if np.average(pixels) > 229:
+        attendance_avg.append(f"{line_idx-first_line_idx+1}, A, Average {np.average(pixels)}")
+    else:
+        attendance_avg.append(f"{line_idx-first_line_idx+1}, P, Average {np.average(pixels)}")
+
+print(attendance_count)
