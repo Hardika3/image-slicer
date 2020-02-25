@@ -3,14 +3,6 @@ import cv2
 from tqdm import tqdm
 import numpy as np
 
-IMAGE = "warped_thresh.jpg"
-MOVE_DOWN = 3
-
-image = cv2.imread(IMAGE)
-image = cv2.resize(image, (image.shape[1]//3, image.shape[0]//3))
-orig = image.copy()
-image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-orig2 = image.copy()
 def get_vert_line(img):
     shape = img.shape
     idxs = []
@@ -116,45 +108,83 @@ def get_line_equation(pta, ptb):
     c = pta[1] - m * pta[0]
     return m,c
 
+def append_missing_lines(new_lines, first):
+    y = new_lines[-1][0][1] - new_lines[-2][0][1]
+    x1 = new_lines[-1][0][0]
+    x2 = new_lines[-1][1][0]
+    if len(new_lines)-first >= 46:
+        return True
+    else:
+        new_lines.append([[x1,new_lines[-1][0][1]+y],[x2,new_lines[-1][1][1]+y]])
+        return False
 
-print(image.shape)
+
+def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=True):
+    image = orig2
+    first_line_idx = get_first_att_line(new_lines, image.shape, 60)
+    append_missing_lines(new_lines, first_line_idx)
+    attendance_count = []
+    attendance_avg = []
+    roll_no = roll_no_start
+    for line_idx in range(first_line_idx, len(new_lines)-1):
+        l1 = new_lines[line_idx]
+        l2 = new_lines[line_idx+1]
+        slope1, const1 = get_line_equation(l1[0], l1[1])
+        slope2, const2 = get_line_equation(l2[0], l2[1])
+        thresh = 150
+        pixels = []
+        #TODO 2, 4 are hardcoded
+        for x in range(min(l1[0][1], l1[1][1])+2, max(l2[0][1], l2[1][1])-4):
+            #TODO HERE
+            if left:
+                for y in range(l1[0][0], image.shape[1]//2):
+                    if(is_below(slope1, const1, [y,x]) and not is_below(slope2, const2, [y,x])):
+                        pixels.append(image[x][y])
+            else:
+                for y in range(l1[0][0], image.shape[1]):
+                    if(is_below(slope1, const1, [y,x]) and not is_below(slope2, const2, [y,x])):
+                        pixels.append(image[x][y])
+
+
+        count = 0
+        for x in pixels:
+            if x < thresh:
+                count+=1
+        if count > count_threshold:
+            attendance_count.append(f"{roll_no}, P, count {count}")
+        else:
+            attendance_count.append(f"{roll_no}, A, count {count}")
+        roll_no += 1
+
+    return attendance_count
+
+
+
+
+
+
+
+IMAGE = "warped_thresh2.jpg"
+MOVE_DOWN = 3
+
+image = cv2.imread(IMAGE)
+image = cv2.resize(image, (image.shape[1]//3, image.shape[0]//3))
+orig = image.copy()
+image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+orig2 = image.copy()
+
 idxa = get_vert_line(image)
-lines = get_horizontal_lines(image, idxa)
-lines = trim_lines(lines)
-new_lines = get_final_lines(lines)
+left_lines = get_horizontal_lines(img=image, idxs=idxa, horizontal_check=7)
+left_lines = trim_lines(left_lines)
+# TODO 30 is hardcoded
+idxb = [image.shape[1]//2+30 for x in range(image.shape[0])]
+right_lines = get_horizontal_lines(img=image, idxs=idxb, horizontal_check=7)
+right_lines = trim_lines(right_lines)
 
-image = orig2
-first_line_idx = get_first_att_line(new_lines, image.shape, 60)
-attendance_count = []
-attendance_avg = []
-for line_idx in range(first_line_idx, len(new_lines)-1):
-    l1 = new_lines[line_idx]
-    l2 = new_lines[line_idx+1]
-    slope1, const1 = get_line_equation(l1[0], l1[1])
-    slope2, const2 = get_line_equation(l2[0], l2[1])
-    thresh = 150
-    pixels = []
-    #print(min(l1[0][1], l1[1][1]), max(l2[0][1], l2[1][1]))
-    #print(l1[0][0], image.shape[1]//2)
-    for x in range(min(l1[0][1], l1[1][1]), max(l2[0][1], l2[1][1])):
-        for y in range(l1[0][0], image.shape[1]//2):
-            if(is_below(slope1, const1, [y,x]) and not is_below(slope2, const2, [y,x])):
-                pixels.append(image[x][y])
+trimmed_left_lines = get_final_lines(left_lines)
+trimmed_right_lines = get_final_lines(right_lines)
+left_line_idx = get_first_att_line(trimmed_left_lines, image.shape, 60)
+right_line_idx = get_first_att_line(trimmed_right_lines, image.shape, 40)
 
-
-    count = 0
-    for x in pixels:
-        if x < thresh:
-            count+=1
-
-    if count > 500:
-        attendance_count.append(f"{line_idx-first_line_idx+1}, P, count {count}")
-    else:
-        attendance_count.append(f"{line_idx-first_line_idx+1}, A, count {count}")
-
-    if np.average(pixels) > 229:
-        attendance_avg.append(f"{line_idx-first_line_idx+1}, A, Average {np.average(pixels)}")
-    else:
-        attendance_avg.append(f"{line_idx-first_line_idx+1}, P, Average {np.average(pixels)}")
-
-print(attendance_count)
+attendance_count_left = get_attendance(image, trimmed_left_lines, count_threshold=500, roll_no_start=1, left=True)
+print(attendance_count_left)
