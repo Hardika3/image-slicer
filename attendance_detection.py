@@ -125,7 +125,7 @@ def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=
     append_missing_lines(new_lines, first_line_idx)
     attendance_count = []
     roll_no = roll_no_start
-    for line_idx in range(first_line_idx, len(new_lines)-1):
+    for line_idx in tqdm(range(first_line_idx, len(new_lines)-1)):
         l1 = new_lines[line_idx]
         l2 = new_lines[line_idx+1]
         slope1, const1 = get_line_equation(l1[0], l1[1])
@@ -133,13 +133,12 @@ def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=
         thresh = 150
         pixels = []
 
+        #TODO Hardcoded
         if left:
             range1, range2 = min(l1[0][1], l1[1][1])+3, max(l2[0][1], l2[1][1])-4
         else:
-            range1, range2 = max(l1[0][1], l1[1][1]), min(l2[0][1], l2[1][1])
-        #TODO 2, 4 are hardcoded
+            range1, range2 = max(l1[0][1], l1[1][1])+4, min(l2[0][1], l2[1][1])
         for x in range(range1, range2):
-            #TODO HERE
             if left:
                 for y in range(l1[0][0], image.shape[1]//2):
                     if(is_below(slope1, const1, [y,x]) and not is_below(slope2, const2, [y,x])):
@@ -189,7 +188,7 @@ trimmed_right_lines = get_final_lines(right_lines)
 left_line_idx = get_first_att_line(trimmed_left_lines, image.shape, 60)
 right_line_idx = get_first_att_line(trimmed_right_lines, image.shape, 40)
 
-attendance_count_right = get_attendance(image, trimmed_right_lines, count_threshold=500, roll_no_start=46,
+attendance_count_right = get_attendance(image, trimmed_right_lines, count_threshold=450, roll_no_start=46,
                                   left=False, first_line_idx=right_line_idx)
 attendance_count_left = get_attendance(image, trimmed_left_lines, count_threshold=500, roll_no_start=1,
                                   left=True, first_line_idx=left_line_idx)
