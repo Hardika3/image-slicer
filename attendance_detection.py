@@ -71,6 +71,7 @@ def trim_lines(lines, orig2):
 
 
 def get_final_lines(lines):
+    MOVE_DOWN = 3
     new_lines = []
     temp = []
     for x in lines:
@@ -108,20 +109,21 @@ def get_line_equation(pta, ptb):
     c = pta[1] - m * pta[0]
     return m,c
 
-def append_missing_lines(new_lines, first):
+def append_missing_lines(new_lines, first, shape):
     y = new_lines[-1][0][1] - new_lines[-2][0][1]
     x1 = new_lines[-1][0][0]
     x2 = new_lines[-1][1][0]
     if len(new_lines)-first >= 46:
         return True
-    else:
+    elif new_lines[-1][0][1]+y < shape[0] and new_lines[-1][1][1]+y < shape[0]:
         new_lines.append([[x1,new_lines[-1][0][1]+y],[x2,new_lines[-1][1][1]+y]])
         return False
+    else:
+        return True
 
 
 def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=True, first_line_idx=0):
-    print(first_line_idx)
-    append_missing_lines(new_lines, first_line_idx)
+    append_missing_lines(new_lines, first_line_idx, image.shape)
     attendance_count = []
     roll_no = roll_no_start
     for line_idx in tqdm(range(first_line_idx, len(new_lines)-1)):
@@ -166,7 +168,6 @@ def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=
 
 def run_all_commands(image):
     image = cv2.resize(image, (image.shape[1]//3, image.shape[0]//3))
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     orig2 = image.copy()    # Used in trim function to remove horizontal lines
 
     idxa = get_vert_line(image)
@@ -199,8 +200,8 @@ if __name__ == "__main__":
     args = vars(ap.parse_args())
 
     IMAGE = args["image"]
-    MOVE_DOWN = 3
 
     image = cv2.imread(IMAGE)
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     print(run_all_commands(image))
 
