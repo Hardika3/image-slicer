@@ -1,4 +1,4 @@
-
+import argparse
 import cv2
 from tqdm import tqdm
 import numpy as np
@@ -57,7 +57,7 @@ def get_horizontal_lines(img, idxs, skip_top_pixels=40, horizontal_check=7, thre
 
 
 
-def trim_lines(lines):
+def trim_lines(lines, orig2):
     rem = []
     for x in lines:
         if (x[1][0] - x[0][0]) < 70:
@@ -120,7 +120,6 @@ def append_missing_lines(new_lines, first):
 
 
 def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=True, first_line_idx=0):
-    image = orig2
     print(first_line_idx)
     append_missing_lines(new_lines, first_line_idx)
     attendance_count = []
@@ -155,42 +154,53 @@ def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=
             if x < thresh:
                 count+=1
         if count > count_threshold:
-            attendance_count.append(f"{roll_no}, P, count {count}")
+            #attendance_count.append(f"{roll_no}, P, count {count}")
+            attendance_count.append(f"{roll_no}:P")
         else:
-            attendance_count.append(f"{roll_no}, A, count {count}")
+            #attendance_count.append(f"{roll_no}, A, count {count}")
+            attendance_count.append(f"{roll_no}:A")
         roll_no += 1
     return attendance_count
 
 
 
+def run_all_commands(image):
+    image = cv2.resize(image, (image.shape[1]//3, image.shape[0]//3))
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    orig2 = image.copy()    # Used in trim function to remove horizontal lines
+
+    idxa = get_vert_line(image)
+    left_lines = get_horizontal_lines(img=image, idxs=idxa, horizontal_check=7)
+    left_lines = trim_lines(left_lines, orig2)
+    # TODO 30 is hardcoded
+    idxb = [image.shape[1]//2+30 for x in range(image.shape[0])]
+    right_lines = get_horizontal_lines(img=image, idxs=idxb, horizontal_check=7)
+    right_lines = trim_lines(right_lines, orig2)
+
+    trimmed_left_lines = get_final_lines(left_lines)
+    trimmed_right_lines = get_final_lines(right_lines)
+    left_line_idx = get_first_att_line(trimmed_left_lines, image.shape, 60)
+    right_line_idx = get_first_att_line(trimmed_right_lines, image.shape, 40)
+
+    image = orig2
+    attendance_count_right = get_attendance(image, trimmed_right_lines, count_threshold=450, roll_no_start=46,
+                                      left=False, first_line_idx=right_line_idx)
+    attendance_count_left = get_attendance(image, trimmed_left_lines, count_threshold=500, roll_no_start=1,
+                                      left=True, first_line_idx=left_line_idx)
+    attendance_all = attendance_count_left + attendance_count_right
+    return attendance_all
 
 
 
-IMAGE = "warped_thresh2.jpg"
-MOVE_DOWN = 3
+if __name__ == "__main__":
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-i", "--image", required = True,
+    help = "Path to the image to be scanned")
+    args = vars(ap.parse_args())
 
-image = cv2.imread(IMAGE)
-image = cv2.resize(image, (image.shape[1]//3, image.shape[0]//3))
-orig = image.copy()
-image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-orig2 = image.copy()
+    IMAGE = args["image"]
+    MOVE_DOWN = 3
 
-idxa = get_vert_line(image)
-left_lines = get_horizontal_lines(img=image, idxs=idxa, horizontal_check=7)
-left_lines = trim_lines(left_lines)
-# TODO 30 is hardcoded
-idxb = [image.shape[1]//2+30 for x in range(image.shape[0])]
-right_lines = get_horizontal_lines(img=image, idxs=idxb, horizontal_check=7)
-right_lines = trim_lines(right_lines)
+    image = cv2.imread(IMAGE)
+    print(run_all_commands(image))
 
-trimmed_left_lines = get_final_lines(left_lines)
-trimmed_right_lines = get_final_lines(right_lines)
-left_line_idx = get_first_att_line(trimmed_left_lines, image.shape, 60)
-right_line_idx = get_first_att_line(trimmed_right_lines, image.shape, 40)
-
-attendance_count_right = get_attendance(image, trimmed_right_lines, count_threshold=450, roll_no_start=46,
-                                  left=False, first_line_idx=right_line_idx)
-attendance_count_left = get_attendance(image, trimmed_left_lines, count_threshold=500, roll_no_start=1,
-                                  left=True, first_line_idx=left_line_idx)
-attendance_all = attendance_count_left + attendance_count_right
-print(attendance_all)
