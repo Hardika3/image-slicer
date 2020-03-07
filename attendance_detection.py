@@ -29,9 +29,6 @@ def get_horizontal_lines(img, idxs, skip_top_pixels=40, horizontal_check=7, thre
                 pixels = []
                 temp_dict = {}
                 if (current_point[0]+3 >= shape[0] or current_point[1]+3 >= shape[1]):
-                    #print(f"current_point[0]+3 >= shape[1] : {current_point[0]+3 >= shape[1]}")
-                    #print(f"current_point[1]+3 >= shape[0] : {current_point[1]+3 >= shape[0]}")
-                    #print(f"Current:{current_point}, Shape:{shape}")
                     endpoint = [current_point[1], current_point[0]]
                     break
 
@@ -83,7 +80,7 @@ def get_final_lines(lines):
     for x in range(len(new_lines)):
         new_lines[x][0][1] += MOVE_DOWN
 
-    return new_lines
+    return fix_short_lines(new_lines)
 
 
 
@@ -119,8 +116,21 @@ def append_missing_lines(new_lines, first, shape):
         new_lines.append([[x1,new_lines[-1][0][1]+y],[x2,new_lines[-1][1][1]+y]])
         return False
     else:
+        new_lines.append([[x1,new_lines[-1][0][1]+y],[x2,new_lines[-1][1][1]+y]])
         return True
 
+
+def fix_short_lines(lines, percentage=85):
+    sub = lines[0][1][0] - lines[0][0][0]
+    thresh = sub*percentage//100+lines[0][0][0]
+    average_horizontal = np.average([x[1][0] for x in lines])
+    for x in range(2, len(lines)):
+        if lines[x][1][0] < thresh:
+            difference = lines[x-1][1][1] - lines[x-2][1][1]
+            lines[x][1][0] = int(average_horizontal)
+            lines[x][1][1] = lines[x-1][1][1] + difference
+
+    return lines
 
 def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=True, first_line_idx=0):
     append_missing_lines(new_lines, first_line_idx, image.shape)
@@ -169,6 +179,7 @@ def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=
 def run_all_commands(image):
     image = cv2.resize(image, (image.shape[1]//3, image.shape[0]//3))
     orig2 = image.copy()    # Used in trim function to remove horizontal lines
+    orig = image.copy()
 
     idxa = get_vert_line(image)
     left_lines = get_horizontal_lines(img=image, idxs=idxa, horizontal_check=7)
@@ -189,6 +200,8 @@ def run_all_commands(image):
     attendance_count_left = get_attendance(image, trimmed_left_lines, count_threshold=500, roll_no_start=1,
                                       left=True, first_line_idx=left_line_idx)
     attendance_all = attendance_count_left + attendance_count_right
+    cv2.drawContours(orig, np.array(trimmed_right_lines), -1, (0, 0, 0), 2)
+    cv2.imwrite("output/new.jpg", orig)
     return attendance_all
 
 
@@ -204,4 +217,5 @@ if __name__ == "__main__":
     image = cv2.imread(IMAGE)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     print(run_all_commands(image))
+
 
