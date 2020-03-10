@@ -4,6 +4,15 @@ from tqdm import tqdm
 import numpy as np
 
 def get_vert_line(img):
+    """
+    Params:
+        img : image to be indexed
+
+    Find he first pixel which is black from the left.
+    Forms the left bounding line for horizontal line detection.
+
+    Returns array of indexes of the found pixels for each horizontal line
+    """
     shape = img.shape
     idxs = []
     for x in range(shape[0]):
@@ -16,6 +25,20 @@ def get_vert_line(img):
     return idxs
 
 def get_horizontal_lines(img, idxs, skip_top_pixels=40, horizontal_check=7, threshold=150):
+    """
+    Params:
+        img : Image
+        idxs : Start points to check from. (contain horizontal co-ordiante of the image, index is vertical)
+        skip_top_pixels(n) : Ignore the top n lines of the image.
+        horizontal_check : Number of pixels to check ahead for line detection.
+        threshold : Pixels below this thresh will be counted.
+
+
+    Connect horizontal pixels to get end points of horizontal lines.
+    Pixels are checked from the start idx progressively in a 2*horizontal_check matrix.
+    If pixels fall below threshold, the minimum valued pixel is the new endpoint of line.
+    Else save points of the line.
+    """
     lines = []
     shape = img.shape
 
@@ -55,8 +78,12 @@ def get_horizontal_lines(img, idxs, skip_top_pixels=40, horizontal_check=7, thre
 
 
 def trim_lines(lines, orig2):
+    """
+    Remove lines having length less than given value
+    """
     rem = []
     for x in lines:
+        # TODO Hardcoded 70
         if (x[1][0] - x[0][0]) < 70:
             rem.append(x)
 
@@ -68,6 +95,9 @@ def trim_lines(lines, orig2):
 
 
 def get_final_lines(lines):
+    """
+    Remove Very close or duplicate lines.
+    """
     MOVE_DOWN = 3
     new_lines = []
     temp = []
@@ -85,6 +115,9 @@ def get_final_lines(lines):
 
 
 def get_first_att_line(lines, img_shape, percentage=60):
+    """
+    Get the first line index which has length greater than given percentage.
+    """
     line_idx = 0
     thresh = (percentage * img_shape[1]) / 100
     for i, line in enumerate(lines):
@@ -95,6 +128,14 @@ def get_first_att_line(lines, img_shape, percentage=60):
 
 
 def is_below(slope, const, pt):
+    """
+    Params :
+    slope : slope of line
+    const : constant of line (y=mx+c)
+    pt : point to check
+
+    Return true if point is below line
+    """
     if pt[1] > (slope * pt[0] + const):
         return True
     else:
@@ -102,11 +143,17 @@ def is_below(slope, const, pt):
 
 
 def get_line_equation(pta, ptb):
+    """
+    Accept endpoints of line and return the slope and constant.
+    """
     m = (ptb[1]-pta[1])/(ptb[0]-pta[0])
     c = pta[1] - m * pta[0]
     return m,c
 
 def append_missing_lines(new_lines, first, shape):
+    """
+    Append missing lines
+    """
     y = new_lines[-1][0][1] - new_lines[-2][0][1]
     x1 = new_lines[-1][0][0]
     x2 = new_lines[-1][1][0]
@@ -121,6 +168,9 @@ def append_missing_lines(new_lines, first, shape):
 
 
 def fix_short_lines(lines, percentage=85):
+    """
+    If a line is too short, get the difference between lines before it and extend the line
+    """
     sub = lines[0][1][0] - lines[0][0][0]
     thresh = sub*percentage//100+lines[0][0][0]
     average_horizontal = np.average([x[1][0] for x in lines])
@@ -133,6 +183,9 @@ def fix_short_lines(lines, percentage=85):
     return lines
 
 def get_attendance(image, new_lines, count_threshold=500, roll_no_start=1, left=True, first_line_idx=0):
+    """
+    Get attendance by counting dark pixels between two lines.
+    """
     append_missing_lines(new_lines, first_line_idx, image.shape)
     attendance_count = []
     roll_no = roll_no_start
