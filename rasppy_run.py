@@ -1,6 +1,7 @@
 import argparse
 from edge import *
 from attendance_detection import *
+import csv
 
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", required = True,
@@ -14,4 +15,12 @@ warped = document_detect(image)
 del warped
 warped_img = cv2.imread("output/warped_thresh.jpg")
 warped_img = cv2.cvtColor(warped_img, cv2.COLOR_BGR2GRAY)
-print(run_all_commands(warped_img))
+
+attendance = run_all_commands(warped_img)
+
+with open('output/attendance.csv', 'w') as f:
+    writer = csv.writer(f)
+    cols = ['course', '--']
+    writer.writerow(cols)
+    for x in attendance:
+        writer.writerow(x.split(':'))

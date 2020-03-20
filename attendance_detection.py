@@ -253,8 +253,6 @@ def run_all_commands(image):
     attendance_count_left = get_attendance(image, trimmed_left_lines, count_threshold=500, roll_no_start=1,
                                       left=True, first_line_idx=left_line_idx)
     attendance_all = attendance_count_left + attendance_count_right
-    cv2.drawContours(orig, np.array(trimmed_right_lines), -1, (0, 0, 0), 2)
-    cv2.imwrite("output/new.jpg", orig)
     return attendance_all
 
 
